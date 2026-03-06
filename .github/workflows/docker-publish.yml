@@ -47,8 +47,6 @@ jobs:
         permissions:
             contents: read
             packages: write
-        env:
-            DOCKER_BUILDKIT: 1
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
@@ -107,9 +105,6 @@ jobs:
                   cache-to: type=gha,mode=max,scope=main
                   build-args: |
                       LLAMA_VERSION=${{ needs.get-latest-release.outputs.version }}
-                  volumes: |
-                      /tmp/ccache:/ccache
-                  builder: ${{ steps.buildx.outputs.name }}
 
             - name: Display build info
               run: |
@@ -139,7 +134,7 @@ jobs:
                       - **llama.cpp Version:** ${{ needs.get-latest-release.outputs.version }}
                       - **Base Image:** Ubuntu 22.04
                       - **Compiler Cache:** ccache enabled
-                      - **Optimizations:** apt cache, ccache, GHA cache
+                      - **Optimizations:** ccache, GHA cache
 
                       ### Usage
                       ```bash
