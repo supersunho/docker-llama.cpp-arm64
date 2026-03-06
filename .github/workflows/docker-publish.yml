@@ -50,6 +50,8 @@ jobs:
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
+              with:
+                  fetch-depth: 1
 
             - name: Set up QEMU
               uses: docker/setup-qemu-action@v3
@@ -134,6 +136,7 @@ jobs:
                       - **llama.cpp Version:** ${{ needs.get-latest-release.outputs.version }}
                       - **Base Image:** Ubuntu 22.04
                       - **Compiler Cache:** ccache enabled
+                      - **Optimizations:** apt cache, ccache, GHA cache
 
                       ### Usage
                       ```bash

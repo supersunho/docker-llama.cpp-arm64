@@ -1,8 +1,10 @@
 # Stage 1: Build stage
 FROM ubuntu:22.04 AS builder
 
-# Install build dependencies including ccache
-RUN apt-get update && apt-get install -y \
+# Install build dependencies including ccache (with apt cache mount)
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/lib/apt/lists \
+    apt-get update && apt-get install -y \
     build-essential \
     cmake \
     git \
@@ -37,8 +39,10 @@ RUN mkdir build && cd build && \
 # Stage 2: Runtime stage
 FROM ubuntu:22.04
 
-# Install runtime dependencies (libssl3 for Ubuntu 22.04)
-RUN apt-get update && apt-get install -y \
+# Install runtime dependencies (libssl3 for Ubuntu 22.04) with apt cache
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/lib/apt/lists \
+    apt-get update && apt-get install -y \
     libgomp1 \
     libssl3 \
     && rm -rf /var/lib/apt/lists/*
