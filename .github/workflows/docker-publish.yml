@@ -17,6 +17,9 @@ on:
                 default: 'false'
                 required: false
                 type: boolean
+            release_tag:
+                description: 'Release tag name (e.g., v1.0.0 or b3655)'
+                required: false
 
 env:
     REGISTRY: ghcr.io
@@ -117,12 +120,16 @@ jobs:
             contents: write
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
         steps:
-            - name: Extract tag name
+            - name: Extract tag name for release
               id: extract-tag
               run: |
-                  TAG_NAME=$(echo "${{ github.ref }}" | sed 's|refs/tags/||')
+                  if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+                    TAG_NAME=$(echo "${{ github.ref }}" | sed 's|refs/tags/||')
+                  else
+                    TAG_NAME="${{ github.event.inputs.release_tag }}"
+                  fi
                   echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-                  echo "Extracted tag: $TAG_NAME"
+                  echo "Release tag: $TAG_NAME"
 
             - name: Create GitHub Release
               uses: actions/create-release@v1
