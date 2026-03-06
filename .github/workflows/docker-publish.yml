@@ -117,13 +117,20 @@ jobs:
             contents: write
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
         steps:
+            - name: Extract tag name
+              id: extract-tag
+              run: |
+                  TAG_NAME=$(echo "${{ github.ref }}" | sed 's|refs/tags/||')
+                  echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+                  echo "Extracted tag: $TAG_NAME"
+
             - name: Create GitHub Release
               uses: actions/create-release@v1
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
-                  tag_name: ${{ github.ref }}
-                  release_name: Release ${{ github.ref }}
+                  tag_name: ${{ steps.extract-tag.outputs.tag_name }}
+                  release_name: Release ${{ steps.extract-tag.outputs.tag_name }}
                   body: |
                       ## Docker Image
 
