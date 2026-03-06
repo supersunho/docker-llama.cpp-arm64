@@ -11,6 +11,12 @@ on:
             - main
     workflow_dispatch:
         description: 'Manually build and push Docker image'
+        inputs:
+            create_release:
+                description: 'Create GitHub Release'
+                default: 'false'
+                required: false
+                type: boolean
 
 env:
     REGISTRY: ghcr.io
@@ -99,7 +105,7 @@ jobs:
         needs: [get-latest-release, build-and-push]
         permissions:
             contents: write
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
         steps:
             - name: Create GitHub Release
               uses: actions/create-release@v1
