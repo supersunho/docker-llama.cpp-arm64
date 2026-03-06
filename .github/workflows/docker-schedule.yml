@@ -53,6 +53,14 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
 
+            - name: Restore ccache
+              uses: actions/cache@v4
+              with:
+                  path: /tmp/ccache
+                  key: ccache-llama-${{ needs.check-update.outputs.version }}
+                  restore-keys: |
+                      ccache-llama-
+
             - name: Update version variable
               run: |
                   echo "LLAMA_CPP_VERSION=${{ needs.check-update.outputs.version }}" >> $GITHUB_ENV
@@ -96,6 +104,8 @@ jobs:
                   cache-to: type=gha,mode=max,scope=main
                   build-args: |
                       LLAMA_VERSION=${{ needs.check-update.outputs.version }}
+                  volumes:
+                      /tmp/ccache:/ccache
 
             - name: Update version in repository variables
               uses: github/codeql-action/automerge@v3
