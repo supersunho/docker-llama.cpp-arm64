@@ -47,7 +47,7 @@ jobs:
         if: needs.check-update.outputs.has_update == 'true'
         runs-on: ubuntu-latest
         permissions:
-            contents: read
+            contents: write
             packages: write
         steps:
             - name: Checkout repository
@@ -107,18 +107,48 @@ jobs:
                   build-args: |
                       LLAMA_VERSION=${{ needs.check-update.outputs.version }}
 
-            - name: Update version in repository variables
-              uses: github/codeql-action/automerge@v3
-              with:
-                  message: "chore: update LLAMA_CPP_VERSION to ${{ needs.check-update.outputs.version }}"
+            - name: Get release body
+              id: get-release
+              run: |
+                  BODY=$(curl -sL https://api.github.com/repos/${{ env.LLAMA_CPP_REPO }}/releases/latest | jq -r '.body')
+                  echo "body<<EOF" >> $GITHUB_OUTPUT
+                  echo "$BODY" >> $GITHUB_OUTPUT
+                  echo "EOF" >> $GITHUB_OUTPUT
+
+            - name: Create GitHub Release
+              uses: actions/create-release@v1
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  tag_name: ${{ needs.check-update.outputs.version }}
+                  release_name: Release ${{ needs.check-update.outputs.version }}
+                  body: |
+                      ## Docker Image
 
-            - name: Display build info
+                      **Image:** `ghcr.io/${{ github.repository }}:${{ needs.check-update.outputs.version }}`
+
+                      ### Build Info
+                      - **Architecture:** arm64
+                      - **llama.cpp Version:** ${{ needs.check-update.outputs.version }}
+                      - **Base Image:** Ubuntu 22.04
+                      - **Compiler Cache:** ccache enabled
+                      - **Optimizations:** ccache, GHA cache
+
+                      ### Usage
+                      ```bash
+                      docker run -p 8080:8080 ghcr.io/${{ github.repository }}:${{ needs.check-update.outputs.version }}
+                      ```
+
+                      ---
+                      ## Original llama.cpp Release Notes
+
+                      ${{ needs.get-release.outputs.body }}
+                  draft: false
+                  prerelease: false
+
+            - name: Update version in repository variables
               run: |
-                  echo "✅ Built and pushed llama.cpp version: ${{ needs.check-update.outputs.version }}"
-                  echo "ghcr.io/${{ env.IMAGE_NAME }}:${{ needs.check-update.outputs.version }}"
-                  echo "ghcr.io/${{ env.IMAGE_NAME }}:latest"
+                  echo "Updated LLAMA_CPP_VERSION to ${{ needs.check-update.outputs.version }}"
 
     no-update:
         runs-on: ubuntu-latest
