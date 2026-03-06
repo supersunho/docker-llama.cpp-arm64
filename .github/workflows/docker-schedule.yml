@@ -92,8 +92,8 @@ jobs:
                       ${{ steps.meta.outputs.labels }}
                       org.opencontainers.image.source=https://github.com/${{ github.repository }}
                       org.opencontainers.image.description=llama.cpp server built for arm64
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
+                  cache-from: type=gha,scope=main
+                  cache-to: type=gha,mode=max,scope=main
                   build-args: |
                       LLAMA_VERSION=${{ needs.check-update.outputs.version }}
 
