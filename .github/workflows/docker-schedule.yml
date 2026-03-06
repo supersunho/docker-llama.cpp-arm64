@@ -49,6 +49,8 @@ jobs:
         permissions:
             contents: read
             packages: write
+        env:
+            DOCKER_BUILDKIT: 1
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
@@ -106,8 +108,9 @@ jobs:
                   cache-to: type=gha,mode=max,scope=main
                   build-args: |
                       LLAMA_VERSION=${{ needs.check-update.outputs.version }}
-                  volumes:
+                  volumes: |
                       /tmp/ccache:/ccache
+                  builder: ${{ steps.buildx.outputs.name }}
 
             - name: Update version in repository variables
               uses: github/codeql-action/automerge@v3
