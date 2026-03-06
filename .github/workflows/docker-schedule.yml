@@ -1,0 +1,120 @@
+name: Scheduled Build (Check for Updates)
+
+on:
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force rebuild even if version unchanged'
+        required: false
+        default: 'false'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  LLAMA_CPP_REPO: ggml-org/llama.cpp
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      has_update: ${{ steps.check.outputs.has_update }}
+    steps:
+      - name: Check latest release
+        id: check
+        run: |
+          CURRENT_VERSION=${{ vars.LLAMA_CPP_VERSION }}
+          LATEST_VERSION=$(curl -sL https://api.github.com/repos/${{ env.LLAMA_CPP_REPO }}/releases/latest | jq -r '.tag_name')
+
+          echo "Current version: $CURRENT_VERSION"
+          echo "Latest version: $LATEST_VERSION"
+
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ] || [ "${{ github.event.inputs.force_build }}" == "true" ]; then
+            echo "has_update=true" >> $GITHUB_OUTPUT
+            echo "has_update=true"
+          else
+            echo "has_update=false" >> $GITHUB_OUTPUT
+            echo "has_update=false"
+          fi
+
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    needs: check-update
+    if: needs.check-update.outputs.has_update == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update version variable
+        run: |
+          echo "LLAMA_CPP_VERSION=${{ needs.check-update.outputs.version }}" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ needs.check-update.outputs.version }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.check-update.outputs.version }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=llama.cpp server built for arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            LLAMA_VERSION=${{ needs.check-update.outputs.version }}
+
+      - name: Update version in repository variables
+        uses: github/codeql-action/automerge@v3
+        with:
+          message: "chore: update LLAMA_CPP_VERSION to ${{ needs.check-update.outputs.version }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Display build info
+        run: |
+          echo "✅ Built and pushed llama.cpp version: ${{ needs.check-update.outputs.version }}"
+          echo "ghcr.io/${{ env.IMAGE_NAME }}:${{ needs.check-update.outputs.version }}"
+          echo "ghcr.io/${{ env.IMAGE_NAME }}:latest"
+
+  no-update:
+    runs-on: ubuntu-latest
+    needs: check-update
+    if: needs.check-update.outputs.has_update == 'false'
+    steps:
+      - name: No update available
+        run: |
+          echo "✅ No new release. Current version: ${{ vars.LLAMA_CPP_VERSION }}"
