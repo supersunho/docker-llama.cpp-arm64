@@ -10,11 +10,11 @@ RUN apt-get update && apt-get install -y \
     ccache \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up ccache
-ENV CC=ccache
-ENV CXX=ccache
-ENV PATH=/usr/lib/ccache:$PATH
+# Set up ccache to wrap gcc/g++
+ENV CC="ccache gcc"
+ENV CXX="ccache g++"
 ENV CCACHE_DIR=/ccache
+ENV CCACHE_NOHASHDIRECTORY=true
 
 WORKDIR /app
 
