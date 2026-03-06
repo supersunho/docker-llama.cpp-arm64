@@ -11,8 +11,13 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Clone llama.cpp from official repository
-RUN git clone https://github.com/ggerganov/llama.cpp.git .
+# Clone llama.cpp from official repository at specified version
+ARG LLAMA_VERSION=latest
+RUN if [ "$LLAMA_VERSION" = "latest" ]; then \
+    git clone https://github.com/ggerganov/llama.cpp.git .; \
+    else \
+    git clone https://github.com/ggerganov/llama.cpp.git . --branch $LLAMA_VERSION --depth 1; \
+    fi
 
 # Build with OpenSSL support
 RUN mkdir build && cd build && \
