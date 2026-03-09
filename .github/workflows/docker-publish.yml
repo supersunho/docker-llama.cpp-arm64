@@ -1,6 +1,9 @@
 name: Build and Push Docker Image
 
 on:
+    schedule:
+        # Run daily at 00:00 UTC
+        - cron: "0 0 * * *"
     push:
         branches:
             - main
@@ -10,11 +13,11 @@ on:
         branches:
             - main
     workflow_dispatch:
-        description: 'Manually build and push Docker image'
+        description: "Manually build and push Docker image"
         inputs:
             create_release:
-                description: 'Create GitHub Release'
-                default: 'false'
+                description: "Create GitHub Release"
+                default: "false"
                 required: false
                 type: boolean
 
