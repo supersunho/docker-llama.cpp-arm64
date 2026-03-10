@@ -44,9 +44,38 @@ jobs:
                   echo "EOF" >> $GITHUB_OUTPUT
                   echo "Latest llama.cpp release: $VERSION"
 
-    build-and-push:
+    check-release-mismatch:
         runs-on: ubuntu-latest
         needs: get-latest-release
+        outputs:
+            needs_build: ${{ steps.check.outputs.needs_build }}
+        steps:
+            - name: Check whether image with latest llama.cpp version already exists in GHCR
+              id: check
+              run: |
+                  VERSION=${{ needs.get-latest-release.outputs.version }}
+                  IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+                  echo "Checking existing GHCR manifest for ${IMAGE}:${VERSION}"
+                  set +e
+                  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                    -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                    -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+                    https://ghcr.io/v2/${{ env.IMAGE_NAME }}/manifests/${VERSION})
+                  set -e
+
+                  if [ "$HTTP_CODE" = "200" ]; then
+                    echo "needs_build=false" >> $GITHUB_OUTPUT
+                    echo "Image already exists for llama.cpp version ${VERSION}. skipping build/push."
+                  else
+                    echo "needs_build=true" >> $GITHUB_OUTPUT
+                    echo "Image missing for llama.cpp version ${VERSION}. build/push required."
+                  fi
+
+    build-and-push:
+        runs-on: ubuntu-latest
+        needs: [get-latest-release, check-release-mismatch]
+        if: needs.check-release-mismatch.outputs.needs_build == 'true'
         permissions:
             contents: read
             packages: write
@@ -115,10 +144,10 @@ jobs:
 
     create-release:
         runs-on: ubuntu-latest
-        needs: [get-latest-release, build-and-push]
+        needs: [get-latest-release, build-and-push, check-release-mismatch]
         permissions:
             contents: write
-        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+        if: needs.check-release-mismatch.outputs.needs_build == 'true' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'))
         steps:
             - name: Extract tag name for release
               id: extract-tag
